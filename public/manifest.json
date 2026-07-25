@@ -3,12 +3,25 @@
   "name": "Tomato Log - ライフログ PWA",
   "icons": [
     {
+      "src": "/icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
       "src": "/favicon.svg",
       "type": "image/svg+xml",
       "sizes": "any"
     }
   ],
   "start_url": "/",
+  "scope": "/",
   "background_color": "#12131C",
   "theme_color": "#12131C",
   "display": "standalone",
