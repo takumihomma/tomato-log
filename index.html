@@ -18,9 +18,21 @@
     <script type="module" src="/src/main.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {
+        let refreshing = false;
+        // SWが更新されたら自動的にページをリロードして最新版を適用
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+          }
+        });
+
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
-            .then((reg) => console.log('ServiceWorker registered:', reg))
+            .then((reg) => {
+              // 毎回最新のSWがあるかバックグラウンドチェック
+              reg.update();
+            })
             .catch((err) => console.error('ServiceWorker error:', err));
         });
       }
