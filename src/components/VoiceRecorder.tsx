@@ -6,16 +6,16 @@ import { StorageService } from '../services/storage';
 
 interface VoiceRecorderProps {
   currentDate: string; // YYYY-MM-DD
+  enableGeo: boolean;
   onLogUpdated: () => void;
 }
 
-export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ currentDate, onLogUpdated }) => {
+export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ currentDate, enableGeo, onLogUpdated }) => {
   const [inputText, setInputText] = useState<string>('');
   const [isListening, setIsListening] = useState<boolean>(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
 
   // Position Location
-  const [enableGeo, setEnableGeo] = useState<boolean>(false);
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [geoLoading, setGeoLoading] = useState<boolean>(false);
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -30,26 +30,20 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ currentDate, onLog
     speechServiceRef.current = new SpeechService();
   }, []);
 
-  // Handle Geolocation fetch
-  const handleToggleGeo = async (enabled: boolean) => {
-    setEnableGeo(enabled);
-    setGeoError(null);
-
-    if (enabled) {
+  // Fetch location if enableGeo is ON
+  useEffect(() => {
+    if (enableGeo) {
       setGeoLoading(true);
-      try {
-        const loc = await GeoService.getCurrentLocation();
-        setLocationData(loc);
-      } catch (err: any) {
-        setGeoError(err.message || '位置情報の取得に失敗しました。');
-        setEnableGeo(false);
-      } finally {
-        setGeoLoading(false);
-      }
+      setGeoError(null);
+      GeoService.getCurrentLocation()
+        .then((loc) => setLocationData(loc))
+        .catch((err) => setGeoError(err.message || '位置情報の取得に失敗しました。'))
+        .finally(() => setGeoLoading(false));
     } else {
       setLocationData(null);
+      setGeoError(null);
     }
-  };
+  }, [enableGeo]);
 
   // Toggle Speech Recognition
   const toggleListening = () => {
@@ -100,7 +94,6 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ currentDate, onLog
     try {
       const savedAttachmentNames: string[] = [];
 
-      // Save attachments into IndexedDB Blob
       for (const item of attachedFiles) {
         await StorageService.saveAttachment({
           date: currentDate,
@@ -126,8 +119,6 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ currentDate, onLog
       // Clear state
       setInputText('');
       setAttachedFiles([]);
-      setEnableGeo(false);
-      setLocationData(null);
       if (isListening && speechServiceRef.current) {
         speechServiceRef.current.stop();
       }
@@ -147,15 +138,13 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ currentDate, onLog
           <span>🎙️ ログ新規記録</span>
         </h2>
 
-        {/* Location Toggle */}
-        <button
-          onClick={() => handleToggleGeo(!enableGeo)}
-          className={`badge ${enableGeo ? 'badge-active' : ''}`}
-          style={{ cursor: 'pointer', padding: '0.4rem 0.75rem', fontSize: '0.82rem' }}
-        >
-          <MapPin size={14} />
-          {geoLoading ? '位置情報取得中...' : enableGeo ? '現在地添付 ON' : '位置情報 OFF'}
-        </button>
+        {/* Location Status Badge */}
+        {enableGeo && (
+          <span className="badge badge-active" style={{ fontSize: '0.82rem' }}>
+            <MapPin size={14} />
+            {geoLoading ? '位置情報取得中...' : locationData ? '位置情報 付与準備OK' : '位置情報 ON'}
+          </span>
+        )}
       </div>
 
       {geoError && (

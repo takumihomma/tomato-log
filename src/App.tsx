@@ -19,6 +19,9 @@ export const App: React.FC = () => {
   const [allLogs, setAllLogs] = useState<DayLog[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
 
+  // Geolocation setting state
+  const [enableGeo, setEnableGeo] = useState<boolean>(false);
+
   // Notification Permission State
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
 
@@ -89,8 +92,6 @@ export const App: React.FC = () => {
     <div className="app-container">
       {/* Top Bar Header with Settings Button */}
       <Header
-        isPersisted={isPersisted}
-        onRequestPersist={handleRequestPersist}
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
@@ -100,6 +101,7 @@ export const App: React.FC = () => {
       {/* Voice / Text Log Input Box */}
       <VoiceRecorder
         currentDate={selectedDate}
+        enableGeo={enableGeo}
         onLogUpdated={refreshData}
       />
 
@@ -126,6 +128,8 @@ export const App: React.FC = () => {
         onExport={handleExport}
         notificationPermission={notificationPermission}
         onRequestNotification={handleRequestNotification}
+        enableGeo={enableGeo}
+        onToggleGeo={setEnableGeo}
       />
 
       {/* Export Progress Modal */}

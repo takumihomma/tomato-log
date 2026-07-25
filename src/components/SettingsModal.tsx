@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, X, ShieldCheck, HardDrive, Download, Bell, HelpCircle } from 'lucide-react';
+import { Settings, X, ShieldCheck, HardDrive, Download, Bell, MapPin, HelpCircle } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -9,6 +9,8 @@ interface SettingsModalProps {
   onExport: () => void;
   notificationPermission: NotificationPermission;
   onRequestNotification: () => void;
+  enableGeo: boolean;
+  onToggleGeo: (enabled: boolean) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -18,7 +20,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onRequestPersist,
   onExport,
   notificationPermission,
-  onRequestNotification
+  onRequestNotification,
+  enableGeo,
+  onToggleGeo
 }) => {
   if (!isOpen) return null;
 
@@ -41,13 +45,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         className="glass-panel"
         style={{
           width: '100%',
-          maxWidth: '560px',
+          maxWidth: '580px',
           maxHeight: '90vh',
           overflowY: 'auto',
           padding: '1.75rem',
           display: 'flex',
           flexDirection: 'column',
-          gap: '1.5rem',
+          gap: '1.25rem',
           position: 'relative'
         }}
         onClick={(e) => e.stopPropagation()}
@@ -55,11 +59,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <div style={{ padding: '0.5.rem', borderRadius: 'var(--radius-sm)', background: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex' }}>
+            <div style={{ padding: '0.5rem', borderRadius: 'var(--radius-sm)', background: 'var(--primary-glow)', color: 'var(--primary)', display: 'flex' }}>
               <Settings size={22} />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>アプリ設定 & マニュアル</h2>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>アプリ設定 & マニュアル ⚙</h2>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>各種機能の設定と使い方の説明</p>
             </div>
           </div>
@@ -72,11 +76,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Section 1: Storage Persistence */}
-        <div style={{ background: 'var(--bg-input)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div style={{ background: 'var(--bg-input)', padding: '1.15rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <ShieldCheck size={20} color="var(--accent-green)" />
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>1. 永続ストレージ設定</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>1. 永続ストレージ設定</h3>
             </div>
             {isPersisted ? (
               <span className="badge badge-active">
@@ -89,42 +93,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             )}
           </div>
 
-          <div style={{ fontSize: '0.83rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', lineHeight: '1.5' }}>
-            <p style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)', padding: '0.7rem', borderRadius: 'var(--radius-sm)', lineHeight: '1.5' }}>
+            <p style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <HelpCircle size={14} color="var(--accent-orange)" /> 【使い方・マニュアル】
             </p>
-            スマホやブラウザの空き容量が逼迫した際、OSやブラウザが保存データを自動消去（データクリア）するのを防ぐ保護機能です。
-            「保護を有効化する」ボタンをタップして許可を与えると、「永続化 有効中」となりデータが安全に端末内へ保持されます。
+            容量逼迫時のデータ自動クリアを防ぐ保護機能です。「保護を有効化する」を許可するとデータを端末内に安全保持します。
           </div>
         </div>
 
         {/* Section 2: Backup */}
-        <div style={{ background: 'var(--bg-input)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div style={{ background: 'var(--bg-input)', padding: '1.15rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Download size={20} color="var(--accent-blue)" />
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>2. データ一括バックアップ</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>2. データ一括バックアップ</h3>
             </div>
             <button onClick={onExport} className="btn btn-secondary" style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem', gap: '0.4rem' }}>
               <Download size={15} /> ZIPバックアップ出力
             </button>
           </div>
 
-          <div style={{ fontSize: '0.83rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', lineHeight: '1.5' }}>
-            <p style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)', padding: '0.7rem', borderRadius: 'var(--radius-sm)', lineHeight: '1.5' }}>
+            <p style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <HelpCircle size={14} color="var(--accent-blue)" /> 【使い方・マニュアル】
             </p>
-            アプリ内に保存されたすべての日付別 Markdown（.md）ログと、添付したすべての画像・ファイルを1つの ZIP ファイルにまとめてダウンロード保存します。
-            定期的なバックアップや、スマホの機種変更時のデータ移行・手元保管にご活用ください。
+            全日付の Markdown（.md）ログと添付画像を 1 つの ZIP ファイルにまとめてダウンロード保存します。
           </div>
         </div>
 
         {/* Section 3: Notification */}
-        <div style={{ background: 'var(--bg-input)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div style={{ background: 'var(--bg-input)', padding: '1.15rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Bell size={20} color="var(--primary)" />
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>3. タイマー通知の許可</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>3. タイマー通知の許可</h3>
             </div>
             {notificationPermission === 'granted' ? (
               <span className="badge badge-active">
@@ -137,12 +139,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             )}
           </div>
 
-          <div style={{ fontSize: '0.83rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', lineHeight: '1.5' }}>
-            <p style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)', padding: '0.7rem', borderRadius: 'var(--radius-sm)', lineHeight: '1.5' }}>
+            <p style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <HelpCircle size={14} color="var(--primary)" /> 【使い方・マニュアル】
             </p>
-            設定したタイマー時間（15分、30分、1時間など）が経過した際、スマホやPCの画面へ「ログの記録時間です」という通知を送信する許可設定です。
-            通知をタップすることで、即座にアプリが開きマイク音声入力を開始できます。
+            設定したタイマー時間が経過した際、端末画面にリマインダー通知を送信する許可設定です。
+          </div>
+        </div>
+
+        {/* Section 4: Geolocation Toggle */}
+        <div style={{ background: 'var(--bg-input)', padding: '1.15rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <MapPin size={20} color="var(--accent-orange)" />
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>4. 位置情報の自動添付</h3>
+            </div>
+            <button
+              onClick={() => onToggleGeo(!enableGeo)}
+              className={`btn ${enableGeo ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem', gap: '0.4rem' }}
+            >
+              <MapPin size={15} /> {enableGeo ? '位置情報添付 ON' : '位置情報添付 OFF'}
+            </button>
+          </div>
+
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)', padding: '0.7rem', borderRadius: 'var(--radius-sm)', lineHeight: '1.5' }}>
+            <p style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <HelpCircle size={14} color="var(--accent-orange)" /> 【使い方・マニュアル】
+            </p>
+            ON に設定すると、ログ保存時に現在地（緯度・経度）を取得し、Google Maps リンクを Markdown 内へ自動的に添付します。
           </div>
         </div>
 

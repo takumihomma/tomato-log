@@ -1,17 +1,11 @@
 import React from 'react';
-import { Settings, ShieldCheck, HardDrive } from 'lucide-react';
+import { Settings } from 'lucide-react';
 
 interface HeaderProps {
-  isPersisted: boolean;
-  onRequestPersist: () => void;
   onOpenSettings: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({
-  isPersisted,
-  onRequestPersist,
-  onOpenSettings
-}) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
   const todayStr = new Date().toLocaleDateString('ja-JP', {
     year: 'numeric',
     month: 'long',
@@ -30,28 +24,13 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
-        {isPersisted ? (
-          <span className="badge badge-active" title="ブラウザのストレージ永続化が有効です">
-            <ShieldCheck size={14} /> 永続ストレージ
-          </span>
-        ) : (
-          <button
-            onClick={onRequestPersist}
-            className="badge"
-            style={{ cursor: 'pointer', background: 'rgba(255, 112, 67, 0.15)', color: 'var(--accent-orange)' }}
-            title="クリックしてデータ保護の永続化を有効にする"
-          >
-            <HardDrive size={14} /> 保護を有効化
-          </button>
-        )}
-
         <button
           onClick={onOpenSettings}
           className="btn btn-primary"
-          style={{ padding: '0.5rem 0.95rem', fontSize: '0.88rem', gap: '0.4rem' }}
+          style={{ padding: '0.55rem 1.1rem', fontSize: '0.9rem', gap: '0.45rem' }}
           title="設定とマニュアルを開く"
         >
-          <Settings size={17} /> 設定 ⚙
+          <Settings size={18} /> 設定 ⚙
         </button>
       </div>
     </header>
