@@ -35,15 +35,16 @@
 
 ### ステップ 3: ビルド設定（Build Settings）の指定
 
-ビルド構成画面（または Build Settings ドロワー）で、以下のパラメータを正確に入力します：
+`wrangler.json` に設定を記述しているため、ビルド構成画面（または Build Settings ドロワー）で以下のパラメータを入力します：
 
 | 設定項目 | 入力値 / 選択肢 | 備考 |
 | :--- | :--- | :--- |
 | **Project name (プロジェクト名)** | `tomato-log` | アプリ識別名 (`https://tomato-log.pages.dev`) |
-| **Production branch (本番ブランチ)** | `main` | 自動デプロイ対象の Git ブランチ |
 | **Build command (ビルドコマンド)** | `npm run build` | Vite + TypeScript のコンパイルコマンド |
-| **Deploy command (デプロイコマンド)** | `npx wrangler pages deploy dist --project-name tomato-log` | **【必須】** プロジェクト名を指定したデプロイコマンド |
-| **Build output directory / Path** | `dist` (または `/`) | 静的アセットの出力場所（`wrangler.json` でも指定済） |
+| **Deploy command (デプロイコマンド)** | `npx wrangler deploy` | デフォルトのデプロイコマンド |
+
+> **💡 出力ディレクトリの自動認識:**
+> プロジェクト直下の `wrangler.json` に `"pages_build_output_dir": "./dist"` を定義しているため、Cloudflare 側のビルドエンジンが自動的に `./dist` フォルダを静的配信サイトとして読み込み・自動デプロイを行います。
 
 ---
 
