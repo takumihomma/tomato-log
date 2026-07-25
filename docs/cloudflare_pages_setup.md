@@ -41,7 +41,7 @@
 | :--- | :--- | :--- |
 | **Project name (プロジェクト名)** | `tomato-log` | アプリ識別名 (`https://tomato-log.pages.dev`) |
 | **Build command (ビルドコマンド)** | `npm run build` | Vite + TypeScript のコンパイルコマンド |
-| **Deploy command (デプロイコマンド)** | `npx wrangler deploy` | デフォルトのデプロイコマンド |
+| **Deploy command (デプロイコマンド)** | `npx wrangler deploy --assets=./dist` | **【重要】** アセット出力ディレクトリ付きデプロイ |
 
 > **💡 出力ディレクトリの自動認識:**
 > プロジェクト直下の `wrangler.json` に `"pages_build_output_dir": "./dist"` を定義しているため、Cloudflare 側のビルドエンジンが自動的に `./dist` フォルダを静的配信サイトとして読み込み・自動デプロイを行います。
