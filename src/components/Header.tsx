@@ -1,16 +1,16 @@
 import React from 'react';
-import { Download, HardDrive, ShieldCheck } from 'lucide-react';
+import { Settings, ShieldCheck, HardDrive } from 'lucide-react';
 
 interface HeaderProps {
   isPersisted: boolean;
-  onExport: () => void;
   onRequestPersist: () => void;
+  onOpenSettings: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   isPersisted,
-  onExport,
-  onRequestPersist
+  onRequestPersist,
+  onOpenSettings
 }) => {
   const todayStr = new Date().toLocaleDateString('ja-JP', {
     year: 'numeric',
@@ -46,12 +46,12 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         <button
-          onClick={onExport}
-          className="btn btn-secondary"
-          style={{ padding: '0.45rem 0.85rem', fontSize: '0.85rem' }}
-          title="すべてのログと添付画像をZIP形式でバックアップ"
+          onClick={onOpenSettings}
+          className="btn btn-primary"
+          style={{ padding: '0.5rem 0.95rem', fontSize: '0.88rem', gap: '0.4rem' }}
+          title="設定とマニュアルを開く"
         >
-          <Download size={16} /> バックアップ
+          <Settings size={17} /> 設定 ⚙
         </button>
       </div>
     </header>

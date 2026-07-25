@@ -5,9 +5,11 @@ import { VoiceRecorder } from './components/VoiceRecorder';
 import { AttachmentManager } from './components/AttachmentManager';
 import { LogList } from './components/LogList';
 import { ExportModal } from './components/ExportModal';
+import { SettingsModal } from './components/SettingsModal';
 
 import { StorageService } from './services/storage';
 import { ExportService } from './services/export';
+import { NotificationService } from './services/notification';
 import type { DayLog } from './domain/log';
 import type { Attachment } from './domain/attachment';
 
@@ -17,16 +19,26 @@ export const App: React.FC = () => {
   const [allLogs, setAllLogs] = useState<DayLog[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
 
+  // Notification Permission State
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+
+  // Settings Modal State
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+
   // Export Modal State
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportPercent, setExportPercent] = useState<number>(0);
   const [exportMessage, setExportMessage] = useState<string>('');
 
-  // Check persistent storage status on mount
+  // Check initial statuses
   useEffect(() => {
     StorageService.requestPersistentStorage().then((persisted) => {
       setIsPersisted(persisted);
     });
+
+    if (NotificationService.isSupported()) {
+      setNotificationPermission(Notification.permission);
+    }
   }, []);
 
   // Fetch DayLogs and Attachments
@@ -52,6 +64,11 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleRequestNotification = async () => {
+    const perm = await NotificationService.requestPermission();
+    setNotificationPermission(perm);
+  };
+
   const handleExport = async () => {
     setIsExporting(true);
     setExportPercent(0);
@@ -70,11 +87,11 @@ export const App: React.FC = () => {
 
   return (
     <div className="app-container">
-      {/* Top Bar Header */}
+      {/* Top Bar Header with Settings Button */}
       <Header
         isPersisted={isPersisted}
-        onExport={handleExport}
         onRequestPersist={handleRequestPersist}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       {/* Interval Alarm / Notification Timer */}
@@ -100,7 +117,18 @@ export const App: React.FC = () => {
         onRefresh={refreshData}
       />
 
-      {/* Export Modal */}
+      {/* Settings & Manual Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        isPersisted={isPersisted}
+        onRequestPersist={handleRequestPersist}
+        onExport={handleExport}
+        notificationPermission={notificationPermission}
+        onRequestNotification={handleRequestNotification}
+      />
+
+      {/* Export Progress Modal */}
       <ExportModal
         isOpen={isExporting}
         percent={exportPercent}
