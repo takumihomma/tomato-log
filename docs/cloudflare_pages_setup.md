@@ -41,10 +41,10 @@
 | :--- | :--- | :--- |
 | **Project name (プロジェクト名)** | `tomato-log` | アプリ識別名 (`https://tomato-log.pages.dev`) |
 | **Build command (ビルドコマンド)** | `npm run build` | Vite + TypeScript のコンパイルコマンド |
-| **Deploy command (デプロイコマンド)** | `echo "Build complete, deploying assets..."` | **【重要】** 権限エラー防止のための正常終了コマンド |
+| **Deploy command (デプロイコマンド)** | `npx wrangler deploy` | **【重要】** wrangler.jsonのassets指定に従いデプロイ |
 
 > **💡 自動デプロイの仕組み:**
-> プロジェクト直下の `wrangler.json` に `"pages_build_output_dir": "./dist"` を定義しているため、`npm run build` 終了後に Cloudflare 側のエンジンが自動的に `./dist` フォルダを読み込み・本番公開します。デプロイコマンドで `npx wrangler` を二重実行する必要はありません。
+> プロジェクト直下の `wrangler.json` に `"assets": { "directory": "./dist" }` を定義しているため、`npx wrangler deploy` がビルド成果物 `./dist` 内のアセットを本番環境へアップロードします。
 
 ---
 
