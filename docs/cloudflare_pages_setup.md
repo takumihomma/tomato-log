@@ -35,15 +35,15 @@
 
 ### ステップ 3: ビルド設定（Build Settings）の指定
 
-ビルド構成画面で、以下のパラメータを正確に入力します：
+ビルド構成画面（または Build Settings ドロワー）で、以下のパラメータを正確に入力します：
 
 | 設定項目 | 入力値 / 選択肢 | 備考 |
 | :--- | :--- | :--- |
-| **Project name (プロジェクト名)** | `tomato-log` *(任意)* | ドメインの一部になります (`https://xxx.pages.dev`) |
-| **Production branch (本番ブランチ)** | `main` | 自動デプロイの対象ブランチ |
-| **Framework preset (フレームワーク)** | `Vite` | ビルド設定の自動プリセット |
-| **Build command (ビルドコマンド)** | `npm run build` | Vite + TypeScript のビルドコマンド |
-| **Build output directory (出力先)** | `dist` | **【重要】** Vite の出力先フォルダ名 |
+| **Project name (プロジェクト名)** | `tomato-log` | アプリ識別名 (`https://tomato-log.pages.dev`) |
+| **Production branch (本番ブランチ)** | `main` | 自動デプロイ対象の Git ブランチ |
+| **Build command (ビルドコマンド)** | `npm run build` | Vite + TypeScript のコンパイルコマンド |
+| **Deploy command (デプロイコマンド)** | `npx wrangler pages deploy dist --project-name tomato-log` | **【必須】** プロジェクト名を指定したデプロイコマンド |
+| **Build output directory / Path** | `dist` (または `/`) | 静的アセットの出力場所（`wrangler.json` でも指定済） |
 
 ---
 
