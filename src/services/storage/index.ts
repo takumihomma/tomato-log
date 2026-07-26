@@ -70,8 +70,8 @@ export class StorageService {
 
   static formatEntryToMarkdown(entry: LogEntry): string {
     const lines: string[] = [];
-    lines.push(`## ${entry.timestamp} ログ記録`);
-    lines.push(`- **内容:** ${entry.content || '(音声・テキスト入力なし)'}`);
+    lines.push(`## [${entry.timestamp}] ログ記録`);
+    lines.push(`- **内容:** ${entry.content || '(添付ファイルのみ記録)'}`);
 
     if (entry.locationUrl) {
       lines.push(`- **位置情報:** [Google Mapsで確認](${entry.locationUrl})`);
@@ -80,9 +80,10 @@ export class StorageService {
     }
 
     if (entry.attachments && entry.attachments.length > 0) {
-      lines.push(`- **添付ファイル:**`);
+      lines.push(`- **添付ファイル (アップロード時間: ${entry.timestamp}):**`);
       entry.attachments.forEach(filename => {
-        lines.push(`  - ![${filename}](attachment:${filename})`);
+        lines.push(`  - 📎 \`${filename}\``);
+        lines.push(`    ![${filename}](${filename})`);
       });
     }
 
