@@ -31,35 +31,28 @@ export class SpeechService {
       return false;
     }
 
-    if (this.isListening) {
-      this.stop();
-    }
-
-    let fullTranscript = '';
-
     this.recognition.onstart = () => {
       this.isListening = true;
       callbacks.onStart();
     };
 
     this.recognition.onresult = (event: any) => {
-      let interimTranscript = '';
       let finalTranscript = '';
+      let interimTranscript = '';
 
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
+      for (let i = 0; i < event.results.length; ++i) {
         const result = event.results[i];
+        const transcriptText = result[0].transcript;
         if (result.isFinal) {
-          finalTranscript += result[0].transcript;
+          finalTranscript += transcriptText;
         } else {
-          interimTranscript += result[0].transcript;
+          interimTranscript += transcriptText;
         }
       }
 
-      if (finalTranscript) {
-        fullTranscript += (fullTranscript ? ' ' : '') + finalTranscript;
-      }
-
-      const currentDisplay = fullTranscript + (interimTranscript ? ` (${interimTranscript})` : '');
+      // 重複する連続単語を自動クリーニング（例: 「トマト トマト トマト」 ➔ 「トマト」）
+      const cleanedFinal = finalTranscript.replace(/(.+?)\1+/g, '$1');
+      const currentDisplay = cleanedFinal + (interimTranscript ? ` (${interimTranscript})` : '');
       callbacks.onResult(currentDisplay, false);
     };
 
