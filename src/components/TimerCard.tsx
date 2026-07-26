@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Clock, Play, Square, Volume2, ShieldCheck } from 'lucide-react';
 import { NotificationService } from '../services/notification';
+import { NativeNotificationService } from '../services/nativeNotification';
 import { VoiceSynthService } from '../services/speech/tts';
 import { WakeLockService } from '../services/wakeLock';
 
@@ -41,7 +42,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({ onTriggerRecord }) => {
 
   const timerRef = useRef<number | null>(null);
 
-  // タイマー開始処理（絶対時間タイムスタンプの物理保存）
+  // タイマー開始処理（絶対時間タイムスタンプの物理保存 & ネイティブ通知音予約）
   const startTimer = useCallback(async (customMins?: number) => {
     const mins = customMins || intervalMinutes;
     const targetTimestamp = Date.now() + mins * 60 * 1000;
@@ -52,6 +53,13 @@ export const TimerCard: React.FC<TimerCardProps> = ({ onTriggerRecord }) => {
 
     setIsRunning(true);
     setTimeLeftSeconds(mins * 60);
+
+    // ネイティブローカル通知音 (whatsup) を指定時間後（スリープ・別アプリ使用中対応）に予約
+    await NativeNotificationService.scheduleNotification(
+      '🍅 What\'s up? ログの時間です！',
+      `設定された${mins}分が経過しました。タップして近況を録音しましょう。`,
+      mins * 60
+    );
 
     const active = await WakeLockService.requestWakeLock();
     setIsWakeLockActive(active);
