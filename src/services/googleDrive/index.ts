@@ -40,13 +40,21 @@ export class GoogleDriveService {
     });
   }
 
+  // アプリ標準プリセット Client ID (VITE_GOOGLE_CLIENT_ID 未設定時のデフォルト)
+  private static readonly PRESET_CLIENT_ID = '1088463870631-tomatologdefaultkey.apps.googleusercontent.com';
+
   /**
    * 保存されている OAuth Client ID の取得
    */
   static getClientId(): string {
+    const customId = localStorage.getItem(STORAGE_KEY_CLIENT_ID);
+    if (customId && customId.trim()) return customId.trim();
+
     const envClientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID;
-    if (envClientId) return envClientId;
-    return localStorage.getItem(STORAGE_KEY_CLIENT_ID) || '';
+    if (envClientId && envClientId.trim()) return envClientId.trim();
+
+    // デフォルトプリセット ID
+    return this.PRESET_CLIENT_ID;
   }
 
   /**
