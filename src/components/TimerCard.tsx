@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Clock, Play, Square, Volume2 } from 'lucide-react';
+import { Clock, Play, Square, Volume2, ShieldCheck } from 'lucide-react';
 import { NotificationService } from '../services/notification';
 import { VoiceSynthService } from '../services/speech/tts';
+import { WakeLockService } from '../services/wakeLock';
 
 interface TimerCardProps {
   onTriggerRecord?: () => void;
@@ -19,6 +20,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({ onTriggerRecord }) => {
   const [intervalMinutes, setIntervalMinutes] = useState<number>(30);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(30 * 60);
+  const [isWakeLockActive, setIsWakeLockActive] = useState<boolean>(false);
 
   // Auto Schedule Config State
   const [schedule, setSchedule] = useState<ScheduleConfig>(() => {
@@ -43,17 +45,21 @@ export const TimerCard: React.FC<TimerCardProps> = ({ onTriggerRecord }) => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  const startTimer = useCallback(() => {
+  const startTimer = useCallback(async () => {
     setIsRunning(true);
     setTimeLeftSeconds(intervalMinutes * 60);
+    const active = await WakeLockService.requestWakeLock();
+    setIsWakeLockActive(active);
   }, [intervalMinutes]);
 
-  const stopTimer = useCallback(() => {
+  const stopTimer = useCallback(async () => {
     setIsRunning(false);
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    await WakeLockService.releaseWakeLock();
+    setIsWakeLockActive(false);
   }, []);
 
   const handleTestVoice = () => {
@@ -141,6 +147,11 @@ export const TimerCard: React.FC<TimerCardProps> = ({ onTriggerRecord }) => {
               {schedule.enabled && (
                 <span className="badge badge-active" style={{ marginLeft: '0.6rem', fontSize: '0.72rem', background: 'rgba(52, 199, 89, 0.15)', color: '#34c759' }}>
                   自動起動 ON ({schedule.startTime}〜{schedule.endTime})
+                </span>
+              )}
+              {isWakeLockActive && (
+                <span className="badge badge-active" style={{ marginLeft: '0.4rem', fontSize: '0.72rem', background: 'rgba(0, 122, 255, 0.15)', color: '#007aff', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                  <ShieldCheck size={12} /> 画面消灯防止 ON
                 </span>
               )}
             </h3>
