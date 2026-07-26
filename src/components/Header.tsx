@@ -1,11 +1,25 @@
-import React from 'react';
-import { Settings } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings, Smartphone } from 'lucide-react';
+import { PwaService } from '../services/pwa';
 
 interface HeaderProps {
   onOpenSettings: () => void;
+  onOpenInstallGuide?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenSettings, onOpenInstallGuide }) => {
+  const [isStandalone, setIsStandalone] = useState<boolean>(true);
+
+  useEffect(() => {
+    setIsStandalone(PwaService.isStandalone());
+
+    const handleInstallChange = () => {
+      setIsStandalone(PwaService.isStandalone());
+    };
+    window.addEventListener('pwa-installed', handleInstallChange);
+    return () => window.removeEventListener('pwa-installed', handleInstallChange);
+  }, []);
+
   const todayStr = new Date().toLocaleDateString('ja-JP', {
     year: 'numeric',
     month: 'long',
@@ -24,6 +38,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings }) => {
       </div>
 
       <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+        {!isStandalone && onOpenInstallGuide && (
+          <button
+            onClick={onOpenInstallGuide}
+            className="btn btn-secondary"
+            style={{ padding: '0.5rem 0.9rem', fontSize: '0.85rem', gap: '0.4rem', borderColor: 'var(--primary)', color: 'var(--primary)' }}
+            title="スマホにアプリとしてインストール・保存"
+          >
+            <Smartphone size={16} /> 📲 アプリ化
+          </button>
+        )}
+
         <button
           onClick={onOpenSettings}
           className="btn btn-primary"

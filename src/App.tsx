@@ -6,10 +6,12 @@ import { AttachmentManager } from './components/AttachmentManager';
 import { LogList } from './components/LogList';
 import { ExportModal } from './components/ExportModal';
 import { SettingsModal } from './components/SettingsModal';
+import { InstallGuideModal } from './components/InstallGuideModal';
 
 import { StorageService } from './services/storage';
 import { ExportService } from './services/export';
 import { NotificationService } from './services/notification';
+import { PwaService } from './services/pwa';
 import type { DayLog } from './domain/log';
 import type { Attachment } from './domain/attachment';
 
@@ -28,6 +30,9 @@ export const App: React.FC = () => {
   // Settings Modal State
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
+  // PWA Install Guide Modal State
+  const [isInstallGuideOpen, setIsInstallGuideOpen] = useState<boolean>(false);
+
   // Export Modal State
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportPercent, setExportPercent] = useState<number>(0);
@@ -38,6 +43,8 @@ export const App: React.FC = () => {
 
   // Check initial statuses & SW notifications
   useEffect(() => {
+    PwaService.init();
+
     StorageService.requestPersistentStorage().then((persisted) => {
       setIsPersisted(persisted);
     });
@@ -119,6 +126,7 @@ export const App: React.FC = () => {
       {/* Top Bar Header with Settings Button */}
       <Header
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
       />
 
       {/* Interval Alarm / Notification Timer */}
@@ -157,6 +165,13 @@ export const App: React.FC = () => {
         onRequestNotification={handleRequestNotification}
         enableGeo={enableGeo}
         onToggleGeo={setEnableGeo}
+        onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
+      />
+
+      {/* Install Guide Modal */}
+      <InstallGuideModal
+        isOpen={isInstallGuideOpen}
+        onClose={() => setIsInstallGuideOpen(false)}
       />
 
       {/* Export Progress Modal */}

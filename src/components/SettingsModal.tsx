@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, X, ShieldCheck, HardDrive, Download, Bell, MapPin, HelpCircle, Cloud, CloudOff, RefreshCw, Key, CheckCircle, Clock } from 'lucide-react';
+import { Settings, X, ShieldCheck, HardDrive, Download, Bell, MapPin, HelpCircle, Cloud, CloudOff, RefreshCw, Key, CheckCircle, Clock, Smartphone } from 'lucide-react';
 import { GoogleDriveService, type GoogleDriveAuthState } from '../services/googleDrive';
 import { StorageService } from '../services/storage';
+import { PwaService } from '../services/pwa';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface SettingsModalProps {
   onRequestNotification: () => void;
   enableGeo: boolean;
   onToggleGeo: (enabled: boolean) => void;
+  onOpenInstallGuide?: () => void;
 }
 
 interface ScheduleConfig {
@@ -32,13 +34,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   notificationPermission,
   onRequestNotification,
   enableGeo,
-  onToggleGeo
+  onToggleGeo,
+  onOpenInstallGuide
 }) => {
   const [gdriveAuth, setGdriveAuth] = useState<GoogleDriveAuthState>(GoogleDriveService.getAuthState());
   const [clientIdInput, setClientIdInput] = useState<string>(GoogleDriveService.getClientId());
   const [showClientIdField, setShowClientIdField] = useState<boolean>(!GoogleDriveService.getClientId());
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
+  const [isStandalone, setIsStandalone] = useState<boolean>(true);
 
   // Timer Schedule State
   const [schedule, setSchedule] = useState<ScheduleConfig>(() => {
@@ -53,6 +57,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (isOpen) {
       setGdriveAuth(GoogleDriveService.getAuthState());
       setClientIdInput(GoogleDriveService.getClientId());
+      setIsStandalone(PwaService.isStandalone());
       const saved = localStorage.getItem(STORAGE_KEY_SCHEDULE);
       if (saved) {
         try { setSchedule(JSON.parse(saved)); } catch { /* ignore */ }
@@ -162,6 +167,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <X size={22} />
           </button>
         </div>
+
+        {/* Uninstalled Banner */}
+        {!isStandalone && onOpenInstallGuide && (
+          <div style={{ background: 'var(--primary-glow)', border: '1px solid var(--primary)', borderRadius: 'var(--radius-md)', padding: '0.85rem 1.15rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.6rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Smartphone size={20} color="var(--primary)" />
+              <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#fff' }}>ホーム画面に追加してアプリとして利用</span>
+            </div>
+            <button
+              onClick={() => {
+                onClose();
+                onOpenInstallGuide();
+              }}
+              className="btn btn-primary"
+              style={{ padding: '0.35rem 0.8rem', fontSize: '0.82rem' }}
+            >
+              アプリ化の手順 📲
+            </button>
+          </div>
+        )}
 
         {/* Section 1: Auto Schedule Settings */}
         <div style={{ background: 'var(--bg-input)', padding: '1.15rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
