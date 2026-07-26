@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tomato-log-v2';
+const CACHE_NAME = 'tomato-log-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -7,7 +7,7 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting(); // 新しいService Workerを即座にアクティブ化
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS_TO_CACHE);
@@ -21,29 +21,48 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
       );
-    }).then(() => self.clients.claim()) // すべてのクライアントを即座に新しいSWで制御
+    }).then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  
+  const url = new URL(event.request.url);
+
+  // HTMLリクエスト（ページナビゲーション）は Network-First
+  if (event.request.mode === 'navigate' || event.request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', responseClone));
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match('/index.html');
+        })
+    );
+    return;
+  }
+
+  // 静的アセット等は Cache-First + Stale-While-Revalidate
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Return cached response and update cache in background
-        fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
+      const fetchPromise = fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && url.origin === location.origin) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
           }
-        }).catch(() => {/* ignore network errors */});
-        return cachedResponse;
-      }
-      return fetch(event.request).catch(() => {
-        if (event.request.headers.get('accept')?.includes('text/html')) {
-          return caches.match('/index.html');
-        }
-      });
+          return networkResponse;
+        })
+        .catch((err) => {
+          return cachedResponse || Promise.reject(err);
+        });
+
+      return cachedResponse || fetchPromise;
     })
   );
 });

@@ -14,14 +14,24 @@
     <title>Tomato Log - ライフログ PWA</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #0d0f12; color: #f3f4f6; font-family: system-ui, -apple-system, sans-serif;">
+        <div style="width: 44px; height: 44px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #ff4757; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+        <p style="margin-top: 1.2rem; font-size: 0.95rem; font-weight: 500; color: #a1a1aa;">Tomato Log 読み込み中...</p>
+        <style>
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        </style>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {
         let refreshing = false;
-        // SWが更新されたら自動的にページをリロードして最新版を適用
+        // SW更新時のみリロード
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-          if (!refreshing) {
+          if (!refreshing && navigator.serviceWorker.controller) {
             refreshing = true;
             window.location.reload();
           }
@@ -30,7 +40,6 @@
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
             .then((reg) => {
-              // 毎回最新のSWがあるかバックグラウンドチェック
               reg.update();
             })
             .catch((err) => console.error('ServiceWorker error:', err));
