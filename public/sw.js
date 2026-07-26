@@ -87,11 +87,12 @@ self.addEventListener('notificationclick', (event) => {
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url && 'focus' in client) {
+          client.postMessage({ type: 'TRIGGER_WHATS_UP' });
           return client.focus();
         }
       }
       if (self.clients.openWindow) {
-        return self.clients.openWindow('/');
+        return self.clients.openWindow('/?action=record');
       }
     })
   );

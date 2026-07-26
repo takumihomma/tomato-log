@@ -4,13 +4,16 @@ import { SpeechService } from '../services/speech';
 import { GeoService, type LocationData } from '../services/geo';
 import { StorageService } from '../services/storage';
 
+import { VoiceSynthService } from '../services/speech/tts';
+
 interface VoiceRecorderProps {
   currentDate: string; // YYYY-MM-DD
   enableGeo: boolean;
   onLogUpdated: () => void;
+  autoRecordTrigger?: number;
 }
 
-export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ currentDate, enableGeo, onLogUpdated }) => {
+export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ currentDate, enableGeo, onLogUpdated, autoRecordTrigger }) => {
   const [inputText, setInputText] = useState<string>('');
   const [isListening, setIsListening] = useState<boolean>(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
@@ -29,6 +32,28 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ currentDate, enabl
   useEffect(() => {
     speechServiceRef.current = new SpeechService();
   }, []);
+
+  // Handle autoRecordTrigger (Notification click / Foreground resume)
+  useEffect(() => {
+    if (autoRecordTrigger && autoRecordTrigger > 0) {
+      // 1. 女性の声で What's up? 発声
+      VoiceSynthService.speakWhatsUp();
+
+      // 2. 音声認識（マイク入力）を開始
+      if (speechServiceRef.current && !isListening) {
+        setSpeechError(null);
+        speechServiceRef.current.start({
+          onStart: () => setIsListening(true),
+          onResult: (text) => setInputText(text),
+          onError: (err) => {
+            setSpeechError(err);
+            setIsListening(false);
+          },
+          onEnd: () => setIsListening(false)
+        });
+      }
+    }
+  }, [autoRecordTrigger]);
 
   // Fetch location if enableGeo is ON
   useEffect(() => {

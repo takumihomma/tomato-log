@@ -33,7 +33,10 @@ export const App: React.FC = () => {
   const [exportPercent, setExportPercent] = useState<number>(0);
   const [exportMessage, setExportMessage] = useState<string>('');
 
-  // Check initial statuses
+  // Auto Record Trigger on Notification Return
+  const [autoRecordTrigger, setAutoRecordTrigger] = useState<number>(0);
+
+  // Check initial statuses & SW notifications
   useEffect(() => {
     StorageService.requestPersistentStorage().then((persisted) => {
       setIsPersisted(persisted);
@@ -42,6 +45,29 @@ export const App: React.FC = () => {
     if (NotificationService.isSupported()) {
       setNotificationPermission(Notification.permission);
     }
+
+    // Check URL parameters (e.g. /?action=record)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('action') === 'record') {
+      setAutoRecordTrigger(Date.now());
+    }
+
+    // Listen to Service Worker messages (e.g. TRIGGER_WHATS_UP)
+    const handleSwMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'TRIGGER_WHATS_UP') {
+        setAutoRecordTrigger(Date.now());
+      }
+    };
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleSwMessage);
+    }
+
+    return () => {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+      }
+    };
   }, []);
 
   // Fetch DayLogs and Attachments
@@ -103,6 +129,7 @@ export const App: React.FC = () => {
         currentDate={selectedDate}
         enableGeo={enableGeo}
         onLogUpdated={refreshData}
+        autoRecordTrigger={autoRecordTrigger}
       />
 
       {/* Attachments Preview Gallery */}

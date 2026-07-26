@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, X, ShieldCheck, HardDrive, Download, Bell, MapPin, HelpCircle, Cloud, CloudOff, RefreshCw, Key, CheckCircle } from 'lucide-react';
+import { Settings, X, ShieldCheck, HardDrive, Download, Bell, MapPin, HelpCircle, Cloud, CloudOff, RefreshCw, Key, CheckCircle, Clock } from 'lucide-react';
 import { GoogleDriveService, type GoogleDriveAuthState } from '../services/googleDrive';
 import { StorageService } from '../services/storage';
 
@@ -14,6 +14,14 @@ interface SettingsModalProps {
   enableGeo: boolean;
   onToggleGeo: (enabled: boolean) => void;
 }
+
+interface ScheduleConfig {
+  enabled: boolean;
+  startTime: string;
+  endTime: string;
+}
+
+const STORAGE_KEY_SCHEDULE = 'tomato_log_timer_schedule';
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
@@ -32,12 +40,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
 
+  // Timer Schedule State
+  const [schedule, setSchedule] = useState<ScheduleConfig>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_SCHEDULE);
+    if (saved) {
+      try { return JSON.parse(saved); } catch { /* ignore */ }
+    }
+    return { enabled: false, startTime: '09:00', endTime: '18:00' };
+  });
+
   useEffect(() => {
     if (isOpen) {
       setGdriveAuth(GoogleDriveService.getAuthState());
       setClientIdInput(GoogleDriveService.getClientId());
+      const saved = localStorage.getItem(STORAGE_KEY_SCHEDULE);
+      if (saved) {
+        try { setSchedule(JSON.parse(saved)); } catch { /* ignore */ }
+      }
     }
   }, [isOpen]);
+
+  const updateSchedule = (updated: Partial<ScheduleConfig>) => {
+    setSchedule((prev) => {
+      const next = { ...prev, ...updated };
+      localStorage.setItem(STORAGE_KEY_SCHEDULE, JSON.stringify(next));
+      // Notify other components (like TimerCard) of storage change
+      window.dispatchEvent(new Event('storage'));
+      return next;
+    });
+  };
 
   const handleSaveClientId = () => {
     GoogleDriveService.setClientId(clientIdInput);
@@ -132,12 +163,58 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
-        {/* Section 1: Storage Persistence */}
+        {/* Section 1: Auto Schedule Settings */}
+        <div style={{ background: 'var(--bg-input)', padding: '1.15rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Clock size={20} color="var(--primary)" />
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>1. ⏰ 毎日自動起動スケジュール</h3>
+            </div>
+            <button
+              onClick={() => updateSchedule({ enabled: !schedule.enabled })}
+              className={`btn ${schedule.enabled ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem' }}
+            >
+              {schedule.enabled ? 'スケジュール ON' : 'スケジュール OFF'}
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-sm)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>開始時刻:</label>
+              <input
+                type="time"
+                value={schedule.startTime}
+                onChange={(e) => updateSchedule({ startTime: e.target.value })}
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)', padding: '0.3rem 0.6rem', fontSize: '0.88rem' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>終了時刻:</label>
+              <input
+                type="time"
+                value={schedule.endTime}
+                onChange={(e) => updateSchedule({ endTime: e.target.value })}
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)', padding: '0.3rem 0.6rem', fontSize: '0.88rem' }}
+              />
+            </div>
+          </div>
+
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)', padding: '0.7rem', borderRadius: 'var(--radius-sm)', lineHeight: '1.5' }}>
+            <p style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <HelpCircle size={14} color="var(--primary)" /> 【使い方・マニュアル】
+            </p>
+            ON に設定すると、毎日指定した開始時刻（例: 09:00）にタイマーが全自動でスタートし、終了時刻（例: 18:00）になると全自動で停止します。
+          </div>
+        </div>
+
+        {/* Section 2: Storage Persistence */}
         <div style={{ background: 'var(--bg-input)', padding: '1.15rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <ShieldCheck size={20} color="var(--accent-green)" />
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>1. 永続ストレージ設定</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>2. 永続ストレージ設定</h3>
             </div>
             {isPersisted ? (
               <span className="badge badge-active">
@@ -158,12 +235,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </div>
 
-        {/* Section 2: Google Drive Auto Backup */}
+        {/* Section 3: Google Drive Auto Backup */}
         <div style={{ background: 'var(--bg-input)', padding: '1.15rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Cloud size={20} color="var(--accent-blue)" />
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>2. Google Drive クラウド自動同期</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>3. Google Drive クラウド自動同期</h3>
             </div>
             {gdriveAuth.isConnected ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -235,12 +312,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </div>
 
-        {/* Section 3: Backup */}
+        {/* Section 4: Backup */}
         <div style={{ background: 'var(--bg-input)', padding: '1.15rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Download size={20} color="var(--accent-blue)" />
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>3. ローカル一括バックアップ</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>4. ローカル一括バックアップ</h3>
             </div>
             <button onClick={onExport} className="btn btn-secondary" style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem', gap: '0.4rem' }}>
               <Download size={15} /> ZIPバックアップ出力
@@ -255,12 +332,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </div>
 
-        {/* Section 4: Notification */}
+        {/* Section 5: Notification */}
         <div style={{ background: 'var(--bg-input)', padding: '1.15rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Bell size={20} color="var(--primary)" />
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>4. タイマー通知の許可</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>5. タイマー通知の許可</h3>
             </div>
             {notificationPermission === 'granted' ? (
               <span className="badge badge-active">
@@ -281,12 +358,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </div>
 
-        {/* Section 5: Geolocation Toggle */}
+        {/* Section 6: Geolocation Toggle */}
         <div style={{ background: 'var(--bg-input)', padding: '1.15rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <MapPin size={20} color="var(--accent-orange)" />
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>5. 位置情報の自動添付</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>6. 位置情報の自動添付</h3>
             </div>
             <button
               onClick={() => onToggleGeo(!enableGeo)}
