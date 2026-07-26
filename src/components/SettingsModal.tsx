@@ -1,5 +1,7 @@
-import React from 'react';
-import { Settings, X, ShieldCheck, HardDrive, Download, Bell, MapPin, HelpCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings, X, ShieldCheck, HardDrive, Download, Bell, MapPin, HelpCircle, Cloud, CloudOff, RefreshCw, Key, CheckCircle } from 'lucide-react';
+import { GoogleDriveService, type GoogleDriveAuthState } from '../services/googleDrive';
+import { StorageService } from '../services/storage';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -24,6 +26,61 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   enableGeo,
   onToggleGeo
 }) => {
+  const [gdriveAuth, setGdriveAuth] = useState<GoogleDriveAuthState>(GoogleDriveService.getAuthState());
+  const [clientIdInput, setClientIdInput] = useState<string>(GoogleDriveService.getClientId());
+  const [showClientIdField, setShowClientIdField] = useState<boolean>(!GoogleDriveService.getClientId());
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [statusMessage, setStatusMessage] = useState<string>('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setGdriveAuth(GoogleDriveService.getAuthState());
+      setClientIdInput(GoogleDriveService.getClientId());
+    }
+  }, [isOpen]);
+
+  const handleSaveClientId = () => {
+    GoogleDriveService.setClientId(clientIdInput);
+    setStatusMessage('Google OAuth Client ID を保存しました。');
+    setTimeout(() => setStatusMessage(''), 3000);
+  };
+
+  const handleGDriveLogin = async () => {
+    try {
+      setStatusMessage('Google 認証を実行中...');
+      const auth = await GoogleDriveService.requestLogin();
+      setGdriveAuth(auth);
+      setStatusMessage(`Google Drive と連携しました (${auth.userEmail || auth.userName})`);
+      setTimeout(() => setStatusMessage(''), 4000);
+    } catch (err: any) {
+      setStatusMessage(`連携失敗: ${err.message || '認証がキャンセルされました'}`);
+    }
+  };
+
+  const handleGDriveLogout = () => {
+    GoogleDriveService.logout();
+    setGdriveAuth(GoogleDriveService.getAuthState());
+    setStatusMessage('Google Drive 連携を解除しました。');
+    setTimeout(() => setStatusMessage(''), 3000);
+  };
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    setStatusMessage('Google Drive へ全データを同期中...');
+    try {
+      const logs = await StorageService.getAllDayLogs();
+      const attachments = await StorageService.getAllAttachments();
+      const count = await GoogleDriveService.syncAll(logs, attachments);
+      const updatedAuth = GoogleDriveService.getAuthState();
+      setGdriveAuth(updatedAuth);
+      setStatusMessage(`同期完了: ${count} 件のログを Google Drive へ保存しました。`);
+    } catch (err: any) {
+      setStatusMessage(`同期失敗: ${err.message}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -97,16 +154,93 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <p style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <HelpCircle size={14} color="var(--accent-orange)" /> 【使い方・マニュアル】
             </p>
-            容量逼迫時のデータ自動クリアを防ぐ保護機能です。「保護を有効化する」を許可するとデータを端末内に安全保持します。
+            端末の空き容量不足時に、ブラウザがアプリデータ（IndexedDB）を勝手に自動削除するのを防ぐ保護機能です。（※有効化しなくてもデータはブラウザ内に常時保存されています）
           </div>
         </div>
 
-        {/* Section 2: Backup */}
+        {/* Section 2: Google Drive Auto Backup */}
+        <div style={{ background: 'var(--bg-input)', padding: '1.15rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Cloud size={20} color="var(--accent-blue)" />
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>2. Google Drive クラウド自動同期</h3>
+            </div>
+            {gdriveAuth.isConnected ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span className="badge badge-active" style={{ background: 'rgba(52, 199, 89, 0.15)', color: '#34c759' }}>
+                  <CheckCircle size={13} /> {gdriveAuth.userEmail || '連携中'}
+                </span>
+                <button onClick={handleGDriveLogout} className="btn btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.78rem', gap: '0.3rem' }}>
+                  <CloudOff size={13} /> 解除
+                </button>
+              </div>
+            ) : (
+              <button onClick={handleGDriveLogin} className="btn btn-primary" style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem', gap: '0.4rem', background: '#4285F4', borderColor: '#4285F4' }}>
+                <Cloud size={15} /> Google Drive と連携
+              </button>
+            )}
+          </div>
+
+          {gdriveAuth.isConnected && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '0.6rem 0.8rem', borderRadius: 'var(--radius-sm)' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                最終同期: {gdriveAuth.lastSyncedAt || '未実施'}
+              </div>
+              <button onClick={handleManualSync} disabled={isSyncing} className="btn btn-secondary" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem', gap: '0.35rem' }}>
+                <RefreshCw size={13} className={isSyncing ? 'animate-spin' : ''} />
+                {isSyncing ? '同期中...' : '今すぐ手動同期'}
+              </button>
+            </div>
+          )}
+
+          {/* Client ID Setting Toggle */}
+          <div style={{ fontSize: '0.78rem' }}>
+            <button
+              onClick={() => setShowClientIdField(!showClientIdField)}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: 0 }}
+            >
+              <Key size={13} /> {showClientIdField ? 'Client ID 設定を隠す' : '⚙ OAuth Client ID の手動設定'}
+            </button>
+
+            {showClientIdField && (
+              <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', background: 'rgba(0,0,0,0.2)', padding: '0.6rem', borderRadius: 'var(--radius-sm)' }}>
+                <label style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Google OAuth 2.0 Client ID:</label>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <input
+                    type="text"
+                    value={clientIdInput}
+                    onChange={(e) => setClientIdInput(e.target.value)}
+                    placeholder="xxxx-xxxx.apps.googleusercontent.com"
+                    style={{ flex: 1, padding: '0.35rem 0.6rem', fontSize: '0.78rem', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)' }}
+                  />
+                  <button onClick={handleSaveClientId} className="btn btn-secondary" style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}>
+                    保存
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {statusMessage && (
+            <div style={{ fontSize: '0.8rem', color: 'var(--accent-green)', background: 'rgba(52, 199, 89, 0.1)', padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}>
+              {statusMessage}
+            </div>
+          )}
+
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)', padding: '0.7rem', borderRadius: 'var(--radius-sm)', lineHeight: '1.5' }}>
+            <p style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <HelpCircle size={14} color="var(--accent-blue)" /> 【使い方・マニュアル】
+            </p>
+            連携すると、ログ記録時にご自身の Google Drive の `TomatoLog` フォルダ内へ、日別 Markdown（.md）データと添付画像が全自動で保存・同期されます。
+          </div>
+        </div>
+
+        {/* Section 3: Backup */}
         <div style={{ background: 'var(--bg-input)', padding: '1.15rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Download size={20} color="var(--accent-blue)" />
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>2. データ一括バックアップ</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>3. ローカル一括バックアップ</h3>
             </div>
             <button onClick={onExport} className="btn btn-secondary" style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem', gap: '0.4rem' }}>
               <Download size={15} /> ZIPバックアップ出力
@@ -121,12 +255,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </div>
 
-        {/* Section 3: Notification */}
+        {/* Section 4: Notification */}
         <div style={{ background: 'var(--bg-input)', padding: '1.15rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Bell size={20} color="var(--primary)" />
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>3. タイマー通知の許可</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>4. タイマー通知の許可</h3>
             </div>
             {notificationPermission === 'granted' ? (
               <span className="badge badge-active">
@@ -147,12 +281,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </div>
 
-        {/* Section 4: Geolocation Toggle */}
+        {/* Section 5: Geolocation Toggle */}
         <div style={{ background: 'var(--bg-input)', padding: '1.15rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <MapPin size={20} color="var(--accent-orange)" />
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>4. 位置情報の自動添付</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>5. 位置情報の自動添付</h3>
             </div>
             <button
               onClick={() => onToggleGeo(!enableGeo)}

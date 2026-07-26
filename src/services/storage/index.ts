@@ -2,6 +2,8 @@ import { db } from './database';
 import type { DayLog, LogEntry } from '../../domain/log';
 import type { Attachment } from '../../domain/attachment';
 
+import { GoogleDriveService } from '../googleDrive';
+
 export class StorageService {
   /**
    * OS等による自動データ消去を防ぐための永続化ストレージ要求
@@ -38,6 +40,12 @@ export class StorageService {
     const updatedAt = new Date().toISOString();
     const dayLog: DayLog = { date, markdown, updatedAt };
     await db.logs.put(dayLog);
+
+    // Google Drive への非同期バックグラウンド同期
+    GoogleDriveService.uploadDayLog(dayLog).catch((err) => {
+      console.warn('Google Drive 同期エラー:', err);
+    });
+
     return dayLog;
   }
 
@@ -86,7 +94,15 @@ export class StorageService {
    * 添付ファイルの保存
    */
   static async saveAttachment(attachment: Omit<Attachment, 'id'>): Promise<number> {
-    return await db.attachments.add(attachment as Attachment);
+    const id = await db.attachments.add(attachment as Attachment);
+    const fullAttachment = { ...attachment, id } as Attachment;
+
+    // Google Drive への非同期バックグラウンド同期
+    GoogleDriveService.uploadAttachment(fullAttachment).catch((err) => {
+      console.warn('Google Drive 添付ファイル同期エラー:', err);
+    });
+
+    return id;
   }
 
   /**
