@@ -15,10 +15,18 @@ interface ScheduleConfig {
 }
 
 const STORAGE_KEY_SCHEDULE = 'tomato_log_timer_schedule';
+const STORAGE_KEY_TARGET_TIME = 'tomato_log_timer_target_timestamp';
+const STORAGE_KEY_INTERVAL_MINS = 'tomato_log_timer_interval_mins';
+const STORAGE_KEY_IS_RUNNING = 'tomato_log_timer_is_running';
 
 export const TimerCard: React.FC<TimerCardProps> = ({ onTriggerRecord }) => {
-  const [intervalMinutes, setIntervalMinutes] = useState<number>(30);
-  const [isRunning, setIsRunning] = useState<boolean>(false);
+  const [intervalMinutes, setIntervalMinutes] = useState<number>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_INTERVAL_MINS);
+    return saved ? parseInt(saved, 10) : 30;
+  });
+  const [isRunning, setIsRunning] = useState<boolean>(() => {
+    return localStorage.getItem(STORAGE_KEY_IS_RUNNING) === 'true';
+  });
   const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(30 * 60);
   const [isWakeLockActive, setIsWakeLockActive] = useState<boolean>(false);
 
@@ -33,6 +41,94 @@ export const TimerCard: React.FC<TimerCardProps> = ({ onTriggerRecord }) => {
 
   const timerRef = useRef<number | null>(null);
 
+  // タイマー開始処理（絶対時間タイムスタンプの物理保存）
+  const startTimer = useCallback(async (customMins?: number) => {
+    const mins = customMins || intervalMinutes;
+    const targetTimestamp = Date.now() + mins * 60 * 1000;
+
+    localStorage.setItem(STORAGE_KEY_TARGET_TIME, targetTimestamp.toString());
+    localStorage.setItem(STORAGE_KEY_INTERVAL_MINS, mins.toString());
+    localStorage.setItem(STORAGE_KEY_IS_RUNNING, 'true');
+
+    setIsRunning(true);
+    setTimeLeftSeconds(mins * 60);
+
+    const active = await WakeLockService.requestWakeLock();
+    setIsWakeLockActive(active);
+  }, [intervalMinutes]);
+
+  // タイマー停止処理
+  const stopTimer = useCallback(async () => {
+    localStorage.removeItem(STORAGE_KEY_TARGET_TIME);
+    localStorage.setItem(STORAGE_KEY_IS_RUNNING, 'false');
+
+    setIsRunning(false);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    await WakeLockService.releaseWakeLock();
+    setIsWakeLockActive(false);
+  }, []);
+
+  const triggerAlarm = useCallback(() => {
+    VoiceSynthService.speakWhatsUp();
+    NotificationService.sendNotification(
+      '🍅 What\'s up? ログの時間です！',
+      `設定された時間間隔が経過しました。タップして近況を録音しましょう。`
+    );
+    if (onTriggerRecord) {
+      onTriggerRecord();
+    }
+  }, [onTriggerRecord]);
+
+  // アプリ復帰・プロセスキル時のタイマー残り時間自動同期
+  const syncTimerState = useCallback(() => {
+    const running = localStorage.getItem(STORAGE_KEY_IS_RUNNING) === 'true';
+    const targetStr = localStorage.getItem(STORAGE_KEY_TARGET_TIME);
+    const minsStr = localStorage.getItem(STORAGE_KEY_INTERVAL_MINS);
+    const mins = minsStr ? parseInt(minsStr, 10) : intervalMinutes;
+
+    if (running && targetStr) {
+      const targetTime = parseInt(targetStr, 10);
+      const now = Date.now();
+      const diffSec = Math.ceil((targetTime - now) / 1000);
+
+      if (diffSec <= 0) {
+        // バックグラウンド中に時間を過ぎていた場合
+        triggerAlarm();
+        // 次のサイクルを再セット
+        const nextTarget = now + mins * 60 * 1000;
+        localStorage.setItem(STORAGE_KEY_TARGET_TIME, nextTarget.toString());
+        setTimeLeftSeconds(mins * 60);
+      } else {
+        // まだ途中
+        setTimeLeftSeconds(diffSec);
+      }
+      setIsRunning(true);
+      WakeLockService.requestWakeLock().then(setIsWakeLockActive);
+    }
+  }, [intervalMinutes, triggerAlarm]);
+
+  // ページフォーカス復帰（別アプリから戻った時）および初期読み込み時の再同期
+  useEffect(() => {
+    syncTimerState();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncTimerState();
+      }
+    };
+
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', syncTimerState);
+
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', syncTimerState);
+    };
+  }, [syncTimerState]);
+
   // Listen to schedule storage changes (e.g. from SettingsModal)
   useEffect(() => {
     const handleStorageChange = () => {
@@ -43,23 +139,6 @@ export const TimerCard: React.FC<TimerCardProps> = ({ onTriggerRecord }) => {
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
-  const startTimer = useCallback(async () => {
-    setIsRunning(true);
-    setTimeLeftSeconds(intervalMinutes * 60);
-    const active = await WakeLockService.requestWakeLock();
-    setIsWakeLockActive(active);
-  }, [intervalMinutes]);
-
-  const stopTimer = useCallback(async () => {
-    setIsRunning(false);
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    await WakeLockService.releaseWakeLock();
-    setIsWakeLockActive(false);
   }, []);
 
   const handleTestVoice = () => {
@@ -94,25 +173,26 @@ export const TimerCard: React.FC<TimerCardProps> = ({ onTriggerRecord }) => {
     return () => clearInterval(scheduleInterval);
   }, [schedule, isRunning, startTimer, stopTimer]);
 
-  // Main Countdown Timer Loop
+  // Main Countdown Timer Loop (目標時間とのギャップで精密カウントダウン)
   useEffect(() => {
     if (isRunning) {
       timerRef.current = window.setInterval(() => {
-        setTimeLeftSeconds((prev) => {
-          if (prev <= 1) {
-            VoiceSynthService.speakWhatsUp();
-            NotificationService.sendNotification(
-              '🍅 What\'s up? ログの時間です！',
-              `設定された${intervalMinutes}分が経過しました。タップして近況を録音しましょう。`
-            );
+        const targetStr = localStorage.getItem(STORAGE_KEY_TARGET_TIME);
+        if (!targetStr) return;
 
-            if (onTriggerRecord) {
-              onTriggerRecord();
-            }
-            return intervalMinutes * 60;
-          }
-          return prev - 1;
-        });
+        const targetTime = parseInt(targetStr, 10);
+        const diffSec = Math.ceil((targetTime - Date.now()) / 1000);
+
+        if (diffSec <= 0) {
+          triggerAlarm();
+
+          // 次のサイクル目標をセット
+          const nextTarget = Date.now() + intervalMinutes * 60 * 1000;
+          localStorage.setItem(STORAGE_KEY_TARGET_TIME, nextTarget.toString());
+          setTimeLeftSeconds(intervalMinutes * 60);
+        } else {
+          setTimeLeftSeconds(diffSec);
+        }
       }, 1000);
     } else {
       if (timerRef.current) {
@@ -126,7 +206,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({ onTriggerRecord }) => {
         clearInterval(timerRef.current);
       }
     };
-  }, [isRunning, intervalMinutes, onTriggerRecord]);
+  }, [isRunning, intervalMinutes, triggerAlarm]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -180,6 +260,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({ onTriggerRecord }) => {
               onClick={() => {
                 setIntervalMinutes(mins);
                 setTimeLeftSeconds(mins * 60);
+                localStorage.setItem(STORAGE_KEY_INTERVAL_MINS, mins.toString());
               }}
               style={{
                 padding: '0.35rem 0.7rem',
@@ -211,7 +292,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({ onTriggerRecord }) => {
               <Square size={16} /> タイマー停止
             </button>
           ) : (
-            <button onClick={startTimer} className="btn btn-primary" style={{ gap: '0.4rem' }}>
+            <button onClick={() => startTimer()} className="btn btn-primary" style={{ gap: '0.4rem' }}>
               <Play size={16} /> タイマー開始
             </button>
           )}
