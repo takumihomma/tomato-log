@@ -109,21 +109,25 @@ export class GoogleDriveService {
   }
 
   /**
-   * Google 認証（ログイン）ポップアップを呼び出し
+   * Google 認証（ログイン）を呼び出し
+   * @param silent true の場合は画面ポップアップを出さずに水面下でトークン再取得を試みる
    */
-  static async requestLogin(): Promise<GoogleDriveAuthState> {
+  static async requestLogin(silent: boolean = false): Promise<GoogleDriveAuthState> {
     const clientId = this.getClientId();
     if (!clientId) {
-      throw new Error('Google Client ID が設定されていません。「設定 ⚙」の Client ID 入力欄に入力するか、環境変数を設定してください。');
+      throw new Error('Google Client ID が設定されていません。');
     }
 
     await this.loadGsiScript();
+
+    const authState = this.getAuthState();
 
     return new Promise((resolve, reject) => {
       try {
         this.tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
           client_id: clientId,
           scope: SCOPES,
+          hint: authState.userEmail,
           callback: async (response: any) => {
             if (response.error) {
               reject(new Error(`Google 認証エラー: ${response.error}`));
@@ -136,22 +140,23 @@ export class GoogleDriveService {
 
             try {
               const userInfo = await GoogleDriveService.fetchUserInfo(accessToken);
-              const authState = GoogleDriveService.saveAuthState({
+              const updatedState = GoogleDriveService.saveAuthState({
                 isConnected: true,
                 accessToken,
                 tokenExpiresAt,
-                userEmail: userInfo.email,
-                userName: userInfo.name,
-                userPicture: userInfo.picture,
+                userEmail: userInfo.email || authState.userEmail,
+                userName: userInfo.name || authState.userName,
+                userPicture: userInfo.picture || authState.userPicture,
               });
-              resolve(authState);
+              resolve(updatedState);
             } catch (err) {
               reject(err);
             }
           },
         });
 
-        this.tokenClient.requestAccessToken({ prompt: 'consent' });
+        // silent の場合は prompt: '' (ポップアップなし)、手動ログイン時は prompt: 'consent'
+        this.tokenClient.requestAccessToken({ prompt: silent ? '' : 'consent' });
       } catch (err) {
         reject(err);
       }
@@ -162,28 +167,36 @@ export class GoogleDriveService {
    * ユーザープロファイル情報の取得
    */
   private static async fetchUserInfo(accessToken: string): Promise<{ email?: string; name?: string; picture?: string }> {
-    const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (!res.ok) throw new Error('ユーザー情報の取得に失敗しました');
-    return await res.json();
+    try {
+      const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) return {};
+      return await res.json();
+    } catch {
+      return {};
+    }
   }
 
   /**
    * 有効なアクセストークンの取得
+   * @param interactive 手動操作時のみ true (ポップアップ許可)
    */
-  static async getValidToken(): Promise<string | null> {
+  static async getValidToken(interactive: boolean = false): Promise<string | null> {
     let auth = this.getAuthState();
     if (!auth.isConnected) return null;
 
+    // トークンがまだ有効
     if (auth.accessToken && auth.tokenExpiresAt && Date.now() < auth.tokenExpiresAt) {
       return auth.accessToken;
     }
 
+    // トークン期限切れ時: バックグラウンド（ログ保存時）はサイレント取得のみ試行し、ポップアップは出さない
     try {
-      const updated = await this.requestLogin();
+      const updated = await this.requestLogin(!interactive);
       return updated.accessToken || null;
-    } catch {
+    } catch (err) {
+      console.warn('サイレントトークン再取得失敗 (ポップアップは抑制されました):', err);
       return null;
     }
   }
